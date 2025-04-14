@@ -10,17 +10,22 @@ import sys
 import ctypes
 from typing import List, Optional, Dict, Any
 import traceback
+import logging
+import argparse
 import colorsys  # Added for HSL manipulation
 
 # ===== CONFIGURATION =====
 CONFIG = {
-    "komorebi_config": ("C:\\Users\\Mike\\komorebi.json"),
-    "alacritty_config": ("C:\\Users\\Mike\\AppData\\Roaming\\alacritty\\colors.toml"),
+    "komorebi_config": os.getenv("KOMOREBI_CONFIG", "C:\\Users\\Mike\\komorebi.json"),
+    "alacritty_config": os.getenv("ALACRITTY_CONFIG", "C:\\Users\\Mike\\AppData\\Roaming\\alacritty\\colors.toml"),
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
     "num_colors": 5,
     "saturation_boost": 3,  # Factor to boost saturation
 }
+
+# Configure logging
+logging.basicConfig(filename='error.log', level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class WallpaperColorExtractor:
@@ -33,6 +38,10 @@ class WallpaperColorExtractor:
         if self.config["debug_images"]:
             os.makedirs(self.config["debug_path"], exist_ok=True)
 
+    def log_error(self, error: Exception) -> None:
+        """Log the error details to a file."""
+        logging.error("An error occurred: %s", str(error), exc_info=True)
+
     def capture_wallpaper_screenshot(self) -> Optional[Image.Image]:
         """Capture screenshot of wallpaper"""
         try:
@@ -43,13 +52,13 @@ class WallpaperColorExtractor:
             print(f"  ▶ Screen dimensions: {width}x{height}")
             screenshot = ImageGrab.grab(bbox=(0, 0, width, height))
             if self.config["debug_images"]:
-                debug_file = os.path.join(self.config["debug_path"], "wallpaper.jpg")
-                screenshot.save(debug_file)
+                debug_file = os.path.join(self.config["debug_path"], "wallpaper.png")
+                screenshot.save(debug_file, format="PNG")
                 print(f"  ✔ Screenshot saved to: {debug_file}")
             return screenshot
         except Exception as e:
             print(f"  ❌ Screenshot failed: {str(e)}")
-            traceback.print_exc()
+            self.log_error(e)
             return None
 
     def get_dominant_colors(self, image: Image.Image) -> Optional[List[str]]:
@@ -67,7 +76,7 @@ class WallpaperColorExtractor:
             return adjusted_colors
         except Exception as e:
             print(f"  ❌ Color extraction failed: {str(e)}")
-            traceback.print_exc()
+            self.log_error(e)
             return None
 
     def boost_saturation(self, hex_colors: List[str]) -> List[str]:
@@ -155,8 +164,8 @@ class WallpaperColorExtractor:
             return True
         except Exception as e:
             print(f"  ❌ Failed to update Alacritty colors: {str(e)}")
-            traceback.print_exc()
-            return False    
+            self.log_error(e)
+            return False
 
     def update_komorebi_colors(self, colors: List[str]) -> bool:
         """Update Komorebi border colors while preserving the file structure."""
@@ -192,7 +201,7 @@ class WallpaperColorExtractor:
             return True
         except Exception as e:
             print(f"  ❌ Failed to update Komorebi colors: {str(e)}")
-            traceback.print_exc()
+            self.log_error(e)
             return False
 
     def run(self) -> None:
@@ -216,10 +225,18 @@ class WallpaperColorExtractor:
                 print(f"{status} {name}")
         except Exception as e:
             print(f"\n❌ Error: {str(e)}")
-            traceback.print_exc()
+            self.log_error(e)
             sys.exit(1)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Wallpaper Color Extractor")
+    parser.add_argument("--num-colors", type=int, default=5, help="Number of dominant colors to extract")
+    parser.add_argument("--saturation-boost", type=float, default=3, help="Saturation boost factor")
+    args = parser.parse_args()
+
+    CONFIG["num_colors"] = args.num_colors
+    CONFIG["saturation_boost"] = args.saturation_boost
+
     extractor = WallpaperColorExtractor()
     extractor.run()
