@@ -19,7 +19,7 @@ import subprocess
 
 # ===== CONFIGURATION =====
 KOMOREBI_CONFIG = "C:\\Users\\Mike\\komorebi.json"
-POWERSHELL_COLORS = "C:\Users\Mike\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+POWERSHELL_COLORS = "C:\\Users\\Mike\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1"
 
 def capture_wallpaper_screenshot():
     """Capture screenshot of wallpaper without windows"""
