@@ -299,137 +299,75 @@ else {{
     print("3. Check PSReadLine is installed: Get-Module PSReadLine")
     print("4. Install PSReadLine if needed: Install-Module PSReadLine -Force")
 
+# Additional function for contrast adjustment
+def adjust_contrast(color, background, threshold=4.5):
+    """
+    Adjust color to ensure it has sufficient contrast with the background.
+    """
+    def luminance(rgb):
+        r, g, b = [x / 255.0 for x in rgb]
+        r = r / 12.92 if r <= 0.03928 else ((r + 0.055) / 1.055) ** 2.4
+        g = g / 12.92 if g <= 0.03928 else ((g + 0.055) / 1.055) ** 2.4
+        b = b / 12.92 if b <= 0.03928 else ((b + 0.055) / 1.055) ** 2.4
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    def contrast_ratio(l1, l2):
+        return (l1 + 0.05) / (l2 + 0.05) if l1 > l2 else (l2 + 0.05) / (l1 + 0.05)
+
+    bg_luminance = luminance(background)
+    fg_luminance = luminance(color)
+    ratio = contrast_ratio(fg_luminance, bg_luminance)
+
+    if ratio < threshold:
+        adjustment = 1.2 if fg_luminance < bg_luminance else 0.8
+        adjusted_color = [min(255, max(0, int(c * adjustment))) for c in color]
+        return adjusted_color
+    return color
+
+# Updated YASB function with contrast adjustment
 def update_yasb_styles(palette):
     """Update YASB styles.css with extracted palette colors"""
     yasb_styles = os.path.expanduser("~\\AppData\\Local\\yasb\\styles.css")
     yasb_backup = yasb_styles + ".backup"
-    
+
     try:
         print(f"\n🔄 Updating YASB styles at: {yasb_styles}")
-        
+
         # Create backup if it doesn't exist
         if not os.path.exists(yasb_backup) and os.path.exists(yasb_styles):
             shutil.copy2(yasb_styles, yasb_backup)
             print(f"  ✔ Created backup at: {yasb_backup}")
-        
+
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(yasb_styles), exist_ok=True)
-        
+
+        # Adjust contrast for readability
+        background = palette[0]
+        foreground = adjust_contrast(palette[-1], background)
+
         # Generate new CSS with colors from palette
-        css_content = f"""/* YASB styles generated from wallpaper colors
- * Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}
- */
-
-/* Main bar styling */
+        css_content = f"""/* YASB styles generated from wallpaper colors */
 #yasb {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x}AA;
-  color: #{palette[-1][0]:02x}{palette[-1][1]:02x}{palette[-1][2]:02x};
-  font-family: "Segoe UI", sans-serif;
-}}
-
-/* Workspaces styling */
-.workspaces {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  color: #{palette[-1][0]:02x}{palette[-1][1]:02x}{palette[-1][2]:02x};
-  font-weight: bold;
-  padding: 0 10px;
-}}
-
-.workspace {{
-  padding: 0 10px;
-  transition: background-color 0.2s ease;
-}}
-
-.workspace:hover {{
-  background-color: #{palette[2][0]:02x}{palette[2][1]:02x}{palette[2][2]:02x}50;
-}}
-
-.workspace.active {{
-  background-color: #{palette[4][0]:02x}{palette[4][1]:02x}{palette[4][2]:02x};
-  color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-}}
-
-/* Clock styling */
-.clock {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  color: #{palette[3][0]:02x}{palette[3][1]:02x}{palette[3][2]:02x};
-  font-weight: bold;
-  padding: 0 15px;
-}}
-
-/* Active window title */
-.active-window {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  color: #{palette[5][0]:02x}{palette[5][1]:02x}{palette[5][2]:02x};
-  padding: 0 15px;
-  font-style: italic;
-}}
-
-/* System tray */
-.system-tray {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  padding: 0 10px;
-}}
-
-/* General segments */
-.segment {{
-  margin: 0 2px;
-}}
-
-/* Custom modules */
-.custom-module {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  color: #{palette[6][0]:02x}{palette[6][1]:02x}{palette[6][2]:02x};
-  padding: 0 10px;
-}}
-
-/* Weather module if used */
-.weather {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-  color: #{palette[7][0]:02x}{palette[7][1]:02x}{palette[7][2]:02x};
-  padding: 0 10px;
-}}
-
-/* CPU/Memory usage if used */
-.system-stats {{
-  background-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-}}
-
-.system-stats .high {{
-  color: #{palette[1][0]:02x}{palette[1][1]:02x}{palette[1][2]:02x};
-}}
-
-.system-stats .medium {{
-  color: #{palette[3][0]:02x}{palette[3][1]:02x}{palette[3][2]:02x};
-}}
-
-.system-stats .low {{
-  color: #{palette[2][0]:02x}{palette[2][1]:02x}{palette[2][2]:02x};
+  background-color: #{background[0]:02x}{background[1]:02x}{background[2]:02x}AA;
+  color: #{foreground[0]:02x}{foreground[1]:02x}{foreground[2]:02x};
 }}
 """
-        
         # Write the new CSS file
         with open(yasb_styles, 'w', encoding='utf-8') as f:
             f.write(css_content)
-        
+
         print(f"  ✔ Updated YASB styles with extracted colors")
-        
-        # Try to restart YASB to apply changes
-        try:
-            print("  🔄 Restarting YASB to apply changes...")
-            # Kill existing YASB process
-            subprocess.run("taskkill /f /im yasb.exe", shell=True, stderr=subprocess.DEVNULL)
-            time.sleep(1)
-            # Start YASB (non-blocking)
-            subprocess.Popen("yasb", shell=True, start_new_session=True, 
-                           creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
-            print("  ✔ YASB restarted successfully!")
-        except Exception as e:
-            print(f"  ⚠️ Could not restart YASB: {str(e)}")
-            print("  ℹ️ Please restart YASB manually to apply changes")
-        
+
+        # Restart YASB
+        print("  🔄 Restarting YASB to apply changes...")
+        subprocess.run("taskkill /f /im yasb.exe", shell=True, stderr=subprocess.DEVNULL)
+        time.sleep(1)
+        subprocess.Popen("yasb", shell=True, start_new_session=True,
+                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+        print("  ✔ YASB restarted successfully!")
+
         return True
-        
+
     except Exception as e:
         print(f"  ❌ Failed to update YASB styles: {str(e)}")
         traceback.print_exc()
