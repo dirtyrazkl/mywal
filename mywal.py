@@ -13,7 +13,7 @@ import traceback
 
 # ===== CONFIGURATION =====
 CONFIG = {
-    "komorebi_config": os.path.expanduser("~\\.config\\komorebi\\komorebi.json"),
+    "komorebi_config": ("C:\\Users\\Mike\\komorebi.json"),
     "alacritty_config": ("C:\\Users\\Mike\\AppData\\Roaming\\alacritty\\colors.toml"),
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
@@ -135,6 +135,46 @@ class WallpaperColorExtractor:
             traceback.print_exc()
             return False
 
+    def update_komorebi_colors(self, colors: List[str]) -> bool:
+        """Update Komorebi border colors while preserving the file structure."""
+        try:
+            print("\n🖼️ Updating Komorebi border colors...")
+            config_path = self.config["komorebi_config"]
+            
+            # Backup the original file
+            backup_path = config_path + ".bak"
+            shutil.copy(config_path, backup_path)
+            print(f"  ✔ Backup created at: {backup_path}")
+
+            # Read the existing file
+            if not os.path.exists(config_path):
+                print(f"  ❌ File not found: {config_path}")
+                return False
+
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+                print(f"  ✔ Loaded Komorebi configuration from {config_path}")
+
+            # Define the keys to update for border colors
+            border_keys = ["active_border_color", "inactive_border_color"]
+
+            # Update colors in the configuration
+            for i, key in enumerate(border_keys):
+                if key in config_data:
+                    print(f"  🟡 Updating {key} to {colors[i % len(colors)]}")
+                    config_data[key] = colors[i % len(colors)]
+
+            # Write the updated configuration back to the file
+            with open(config_path, "w") as f:
+                json.dump(config_data, f, indent=4)
+            print(f"  ✔ Komorebi colors updated at: {config_path}")
+
+            return True
+        except Exception as e:
+            print(f"  ❌ Failed to update Komorebi colors: {str(e)}")
+            traceback.print_exc()
+            return False
+
     def run(self) -> None:
         """Main execution method"""
         try:
@@ -148,6 +188,7 @@ class WallpaperColorExtractor:
             self.show_color_palette(palette)
             updates = {
                 "Alacritty": self.update_alacritty_colors(palette),
+                "Komorebi": self.update_komorebi_colors(palette),
             }
             print("\n✅ Done! Summary of changes:")
             for name, success in updates.items():
