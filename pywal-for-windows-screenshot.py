@@ -326,81 +326,66 @@ def adjust_contrast(color, background, threshold=4.5):
 
 # Updated YASB function with contrast adjustment
 def update_yasb_styles(palette):
-    """Update YASB styles.css with extracted palette colors"""
-    yasb_styles = os.path.expanduser("~\\AppData\\Local\\yasb\\styles.css")
+    """Update YASB styles.css with extracted palette colors and set a darker background for the bar."""
+    yasb_styles = os.path.expanduser("~\\.config\\yasb\\styles.css")
     yasb_backup = yasb_styles + ".backup"
 
     try:
         print(f"\n🔄 Updating YASB styles at: {yasb_styles}")
 
-        # Create a backup of the original styles.css if it doesn't exist
+        # Ensure backup exists
         if not os.path.exists(yasb_backup) and os.path.exists(yasb_styles):
             shutil.copy2(yasb_styles, yasb_backup)
-            print(f"  ✔ Created backup at: {yasb_backup}")
+            print(f"  ✔ Backup created at: {yasb_backup}")
 
-        # Create the directory if it doesn't exist
-        os.makedirs(os.path.dirname(yasb_styles), exist_ok=True)
+        # Read the existing styles.css content
+        if not os.path.exists(yasb_styles):
+            print(f"  ❌ styles.css not found at {yasb_styles}")
+            return False
 
-        # Map the palette colors to CSS variables
-        css_content = f"""
-/* Updated YASB styles generated from wallpaper colors */
-:root {{
-    --primary-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
-    --secondary-color: #{palette[1][0]:02x}{palette[1][1]:02x}{palette[1][2]:02x};
-    --accent-color: #{palette[2][0]:02x}{palette[2][1]:02x}{palette[2][2]:02x};
-    --highlight-color: #{palette[3][0]:02x}{palette[3][1]:02x}{palette[3][2]:02x};
-    --background-color: #{palette[4][0]:02x}{palette[4][1]:02x}{palette[4][2]:02x};
-    --foreground-color: #{palette[5][0]:02x}{palette[5][1]:02x}{palette[5][2]:02x};
-    --muted-color: #{palette[6][0]:02x}{palette[6][1]:02x}{palette[6][2]:02x};
-    --bright-color: #{palette[7][0]:02x}{palette[7][1]:02x}{palette[7][2]:02x};
-}}
+        with open(yasb_styles, 'r', encoding='utf-8') as f:
+            styles_content = f.readlines()
 
-* {{
-    font-size: 12px;
-    color: var(--primary-color);
-    font-weight: 500;
-    font-family: "JetBrainsMono NFP";
-    margin: 0;
-    padding: 0;
-}}
+        # Map palette colors to specific CSS rules
+        color_mapping = {
+            "primary-color": palette[0],
+            "secondary-color": palette[1],
+            "accent-color": palette[2],
+            "highlight-color": palette[3],
+            "background-color": palette[4],
+            "foreground-color": palette[5],
+            "muted-color": palette[6],
+            "bright-color": palette[7],
+        }
 
-.yasb-bar {{
-    padding: 0;
-    margin: 0;
-    background-color: var(--background-color);
-    border-radius: 5px;
-}}
+        # Select the darkest color for the bar background from the palette
+        darkest_color = sorted(palette, key=lambda c: 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2])[0]
 
-.widget {{
-    padding: 0 8px;
-    margin: 0 4px;
-}}
+        # Function to convert RGB tuple to CSS-friendly rgb() string
+        def rgb_to_css(rgb):
+            return f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})"
 
-.widget .label {{
-    padding: 0px 2px; 
-    color: var(--foreground-color);
-}}
+        # Update CSS content
+        updated_styles = []
+        for line in styles_content:
+            updated_line = line
+            if "background-color:" in line and ".yasb-bar" in line:
+                updated_line = re.sub(r"rgb\([^)]*\)", rgb_to_css(darkest_color), line)
+            elif "color:" in line or "background-color:" in line:
+                for name, rgb in color_mapping.items():
+                    css_color = rgb_to_css(rgb)
+                    if name in line:
+                        updated_line = re.sub(r"rgb\([^)]*\)", css_color, line)
+                        break
+            updated_styles.append(updated_line)
 
-.widget .label.alt {{
-    padding: 0px 8px;
-    color: var(--secondary-color);
-}}
-
-.active-window-widget {{
-    border-radius: 4px;
-    margin-left: 8px;
-    background-color: var(--highlight-color);
-}}
-
-/* Add more mappings as needed from your original styles.css */
-"""
-        # Write the new CSS content to the styles.css file
+        # Write updated styles back to the file
         with open(yasb_styles, 'w', encoding='utf-8') as f:
-            f.write(css_content)
+            f.writelines(updated_styles)
 
         print(f"  ✔ Updated YASB styles with extracted colors")
 
-        # Restart YASB to apply the changes
+        # Restart YASB to apply changes
         print("  🔄 Restarting YASB to apply changes...")
         subprocess.run("taskkill /f /im yasb.exe", shell=True, stderr=subprocess.DEVNULL)
         time.sleep(1)
@@ -467,7 +452,7 @@ def main():
         print(f"- Windows accent color updated (may need logout)")
         print(f"- Komorebi config: {KOMOREBI_CONFIG}")
         print(f"- PowerShell profile: {POWERSHELL_COLORS}")
-        print(f"- YASB styles: {os.path.expanduser('~\\AppData\\Local\\yasb\\styles.css')}")
+        print(f"- YASB styles: {os.path.expanduser('~\\.config\\yasb\\styles.css')}")
         
         # 4. Launch new PowerShell window to show changes
         launch_new_powershell()
