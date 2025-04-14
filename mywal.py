@@ -18,8 +18,8 @@ CONFIG = {
     "alacritty_config": ("C:\\Users\\Mike\\AppData\\Roaming\\alacritty\\colors.toml"),
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
-    "num_colors": 5,
-    "saturation_boost": 1.4,  # Factor to boost saturation
+    "num_colors": 8,
+    "saturation_boost": 4,  # Factor to boost saturation
 }
 
 
