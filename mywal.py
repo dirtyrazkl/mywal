@@ -9,7 +9,6 @@ from matplotlib.colors import to_hex
 import sys
 import ctypes
 from typing import List, Optional, Dict, Any
-import traceback
 import logging
 import argparse
 import colorsys  # Added for HSL manipulation
@@ -25,25 +24,41 @@ CONFIG = {
 }
 
 # Configure logging
-logging.basicConfig(filename='error.log', level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
-
+logging.basicConfig(
+    filename='error.log',
+    level=logging.DEBUG,  # Set to DEBUG for detailed log output
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 class WallpaperColorExtractor:
+    """
+    A class to extract dominant colors from a wallpaper and update configurations for specific programs.
+    """
+
     def __init__(self, config: Dict[str, Any] = None):
+        """
+        Initialize the WallpaperColorExtractor with optional configuration.
+        """
         self.config = config if config else CONFIG
         self.ensure_debug_directory()
 
     def ensure_debug_directory(self) -> None:
-        """Ensure debug directory exists"""
+        """
+        Ensure that the debug directory exists if debugging is enabled.
+        """
         if self.config["debug_images"]:
             os.makedirs(self.config["debug_path"], exist_ok=True)
 
     def log_error(self, error: Exception) -> None:
-        """Log the error details to a file."""
+        """
+        Log the error details to a file.
+        """
         logging.error("An error occurred: %s", str(error), exc_info=True)
 
     def capture_wallpaper_screenshot(self) -> Optional[Image.Image]:
-        """Capture screenshot of wallpaper"""
+        """
+        Capture a screenshot of the current wallpaper.
+        """
         try:
             print("\n📸 Capturing wallpaper screenshot...")
             user32 = ctypes.windll.user32
@@ -62,7 +77,9 @@ class WallpaperColorExtractor:
             return None
 
     def get_dominant_colors(self, image: Image.Image) -> Optional[List[str]]:
-        """Extract dominant colors from image using k-means clustering"""
+        """
+        Extract dominant colors from the image using k-means clustering.
+        """
         try:
             print("\n🎨 Extracting dominant colors...")
             arr = np.array(image)
@@ -80,18 +97,25 @@ class WallpaperColorExtractor:
             return None
 
     def boost_saturation(self, hex_colors: List[str]) -> List[str]:
-        """Boost the saturation of colors to make them more vibrant."""
+        """
+        Boost the saturation of colors to make them more vibrant.
+        """
         boosted_colors = []
         for hex_color in hex_colors:
-            r, g, b = tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (1, 3, 5))  # Convert HEX to normalized RGB
-            h, l, s = colorsys.rgb_to_hls(r, g, b)  # Convert RGB to HSL
-            s = min(1.0, s * self.config["saturation_boost"])  # Boost saturation
-            r, g, b = colorsys.hls_to_rgb(h, l, s)  # Convert back to RGB
-            boosted_colors.append(to_hex([r, g, b]))  # Convert normalized RGB to HEX
+            try:
+                r, g, b = tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (1, 3, 5))  # Convert HEX to normalized RGB
+                h, l, s = colorsys.rgb_to_hls(r, g, b)  # Convert RGB to HSL
+                s = min(1.0, s * self.config["saturation_boost"])  # Boost saturation
+                r, g, b = colorsys.hls_to_rgb(h, l, s)  # Convert back to RGB
+                boosted_colors.append(to_hex([r, g, b]))  # Convert normalized RGB to HEX
+            except Exception as e:
+                logging.warning(f"Failed to boost saturation for {hex_color}: {str(e)}")
         return boosted_colors
 
     def show_color_palette(self, colors: List[str]) -> None:
-        """Display the color palette directly in the terminal."""
+        """
+        Display the color palette in the terminal.
+        """
         if not colors:
             print("❌ No colors provided to display the palette.")
             return
@@ -102,7 +126,9 @@ class WallpaperColorExtractor:
         print()  # Add a blank line for better formatting
 
     def update_alacritty_colors(self, colors: List[str]) -> bool:
-        """Update Alacritty terminal colors while preserving the file structure."""
+        """
+        Update Alacritty terminal colors while preserving the file structure.
+        """
         try:
             print("\n🖥️ Updating Alacritty colors...")
             config_path = self.config["alacritty_config"]
@@ -168,7 +194,9 @@ class WallpaperColorExtractor:
             return False
 
     def update_komorebi_colors(self, colors: List[str]) -> bool:
-        """Update Komorebi border colors while preserving the file structure."""
+        """
+        Update Komorebi border colors while preserving the file structure.
+        """
         config_path = self.config["komorebi_config"]
         try:
             print("\n🖼️ Updating Komorebi border colors...")
@@ -205,9 +233,11 @@ class WallpaperColorExtractor:
             return False
 
     def run(self) -> None:
-        """Main execution method"""
+        """
+        Main execution method to capture wallpaper, extract colors, and update configurations.
+        """
         try:
-            print("🎨 Starting Wallpaper Color Extractor...")
+            print("🎨 Starting Wallpaper Color Extractor...\n")
             wallpaper = self.capture_wallpaper_screenshot()
             if not wallpaper:
                 raise Exception("Failed to capture wallpaper screenshot")
@@ -215,18 +245,18 @@ class WallpaperColorExtractor:
             if not palette:
                 raise Exception("Failed to extract colors from wallpaper")
             self.show_color_palette(palette)
+            print("\nUpdating configurations...\n")
             updates = {
                 "Alacritty": self.update_alacritty_colors(palette),
                 "Komorebi": self.update_komorebi_colors(palette),
             }
             print("\n✅ Done! Summary of changes:")
             for name, success in updates.items():
-                status = "✔" if success else "❌"
-                print(f"{status} {name}")
+                status = "✔ Success" if success else "❌ Failed"
+                print(f"{status}: {name}")
         except Exception as e:
             print(f"\n❌ Error: {str(e)}")
             self.log_error(e)
-            sys.exit(1)
 
 
 if __name__ == "__main__":
