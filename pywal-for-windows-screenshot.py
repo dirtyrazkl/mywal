@@ -333,32 +333,74 @@ def update_yasb_styles(palette):
     try:
         print(f"\n🔄 Updating YASB styles at: {yasb_styles}")
 
-        # Create backup if it doesn't exist
+        # Create a backup of the original styles.css if it doesn't exist
         if not os.path.exists(yasb_backup) and os.path.exists(yasb_styles):
             shutil.copy2(yasb_styles, yasb_backup)
             print(f"  ✔ Created backup at: {yasb_backup}")
 
-        # Create directory if it doesn't exist
+        # Create the directory if it doesn't exist
         os.makedirs(os.path.dirname(yasb_styles), exist_ok=True)
 
-        # Adjust contrast for readability
-        background = palette[0]
-        foreground = adjust_contrast(palette[-1], background)
-
-        # Generate new CSS with colors from palette
-        css_content = f"""/* YASB styles generated from wallpaper colors */
-#yasb {{
-  background-color: #{background[0]:02x}{background[1]:02x}{background[2]:02x}AA;
-  color: #{foreground[0]:02x}{foreground[1]:02x}{foreground[2]:02x};
+        # Map the palette colors to CSS variables
+        css_content = f"""
+/* Updated YASB styles generated from wallpaper colors */
+:root {{
+    --primary-color: #{palette[0][0]:02x}{palette[0][1]:02x}{palette[0][2]:02x};
+    --secondary-color: #{palette[1][0]:02x}{palette[1][1]:02x}{palette[1][2]:02x};
+    --accent-color: #{palette[2][0]:02x}{palette[2][1]:02x}{palette[2][2]:02x};
+    --highlight-color: #{palette[3][0]:02x}{palette[3][1]:02x}{palette[3][2]:02x};
+    --background-color: #{palette[4][0]:02x}{palette[4][1]:02x}{palette[4][2]:02x};
+    --foreground-color: #{palette[5][0]:02x}{palette[5][1]:02x}{palette[5][2]:02x};
+    --muted-color: #{palette[6][0]:02x}{palette[6][1]:02x}{palette[6][2]:02x};
+    --bright-color: #{palette[7][0]:02x}{palette[7][1]:02x}{palette[7][2]:02x};
 }}
+
+* {{
+    font-size: 12px;
+    color: var(--primary-color);
+    font-weight: 500;
+    font-family: "JetBrainsMono NFP";
+    margin: 0;
+    padding: 0;
+}}
+
+.yasb-bar {{
+    padding: 0;
+    margin: 0;
+    background-color: var(--background-color);
+    border-radius: 5px;
+}}
+
+.widget {{
+    padding: 0 8px;
+    margin: 0 4px;
+}}
+
+.widget .label {{
+    padding: 0px 2px; 
+    color: var(--foreground-color);
+}}
+
+.widget .label.alt {{
+    padding: 0px 8px;
+    color: var(--secondary-color);
+}}
+
+.active-window-widget {{
+    border-radius: 4px;
+    margin-left: 8px;
+    background-color: var(--highlight-color);
+}}
+
+/* Add more mappings as needed from your original styles.css */
 """
-        # Write the new CSS file
+        # Write the new CSS content to the styles.css file
         with open(yasb_styles, 'w', encoding='utf-8') as f:
             f.write(css_content)
 
         print(f"  ✔ Updated YASB styles with extracted colors")
 
-        # Restart YASB
+        # Restart YASB to apply the changes
         print("  🔄 Restarting YASB to apply changes...")
         subprocess.run("taskkill /f /im yasb.exe", shell=True, stderr=subprocess.DEVNULL)
         time.sleep(1)
