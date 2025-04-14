@@ -155,15 +155,19 @@ class WallpaperColorExtractor:
                 config_data = json.load(f)
                 print(f"  ✔ Loaded Komorebi configuration from {config_path}")
 
-            # Define the keys to update for border colors
-            border_keys = ["active_border_color", "inactive_border_color"]
+            # Check if "border_colours" exists and update it
+            if "border_colours" in config_data:
+                border_colours = config_data["border_colours"]
 
-            # Update colors in the configuration
-            for i, key in enumerate(border_keys):
-                if key in config_data:
-                    print(f"  🟡 Updating {key} to {colors[i % len(colors)]}")
-                    config_data[key] = colors[i % len(colors)]
+                # Define the keys to update
+                keys_to_update = ["single", "stack", "monocle", "unfocused"]
 
+                # Update the colors for each key in "border_colours"
+                for i, key in enumerate(keys_to_update):
+                    if key in border_colours:
+                        print(f"  🟡 Updating {key} to {colors[i % len(colors)]}")
+                        border_colours[key] = colors[i % len(colors)]
+            
             # Write the updated configuration back to the file
             with open(config_path, "w") as f:
                 json.dump(config_data, f, indent=4)
