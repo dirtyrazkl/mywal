@@ -10,6 +10,7 @@ import sys
 import ctypes
 from typing import List, Optional, Dict, Any
 import traceback
+import colorsys  # Added for HSL manipulation
 
 # ===== CONFIGURATION =====
 CONFIG = {
@@ -18,7 +19,9 @@ CONFIG = {
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
     "num_colors": 5,
+    "saturation_boost": 1.4,  # Factor to boost saturation
 }
+
 
 class WallpaperColorExtractor:
     def __init__(self, config: Dict[str, Any] = None):
@@ -58,12 +61,25 @@ class WallpaperColorExtractor:
             kmeans = KMeans(n_clusters=self.config["num_colors"], random_state=42).fit(pixels)
             colors = kmeans.cluster_centers_
             hex_colors = [to_hex(color / 255) for color in colors]
-            print(f"  ✔ Extracted colors: {hex_colors}")
-            return hex_colors
+            print(f"  ✔ Extracted colors (before adjustment): {hex_colors}")
+            adjusted_colors = self.boost_saturation(hex_colors)
+            print(f"  ✔ Colors after saturation boost: {adjusted_colors}")
+            return adjusted_colors
         except Exception as e:
             print(f"  ❌ Color extraction failed: {str(e)}")
             traceback.print_exc()
             return None
+
+    def boost_saturation(self, hex_colors: List[str]) -> List[str]:
+        """Boost the saturation of colors to make them more vibrant."""
+        boosted_colors = []
+        for hex_color in hex_colors:
+            r, g, b = tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (1, 3, 5))  # Convert HEX to normalized RGB
+            h, l, s = colorsys.rgb_to_hls(r, g, b)  # Convert RGB to HSL
+            s = min(1.0, s * self.config["saturation_boost"])  # Boost saturation
+            r, g, b = colorsys.hls_to_rgb(h, l, s)  # Convert back to RGB
+            boosted_colors.append(to_hex([r, g, b]))  # Convert normalized RGB to HEX
+        return boosted_colors
 
     def show_color_palette(self, colors: List[str]) -> None:
         """Display the color palette directly in the terminal."""
@@ -110,14 +126,7 @@ class WallpaperColorExtractor:
 
             # Update the colors in the file
             updated_lines = []
-            current_section = None
             for line in lines:
-                # Check if the line is a section header
-                section_match = re.match(r"^\[([^\]]+)\]", line)
-                if section_match:
-                    current_section = section_match.group(1)
-
-                # Attempt to replace colors based on the current section and key
                 for color_key, new_value in replacements.items():
                     if f"{color_key} =" in line:
                         print(f"  🟡 Replacing {color_key} with {new_value}")
@@ -137,42 +146,26 @@ class WallpaperColorExtractor:
 
     def update_komorebi_colors(self, colors: List[str]) -> bool:
         """Update Komorebi border colors while preserving the file structure."""
+        config_path = self.config["komorebi_config"]
         try:
             print("\n🖼️ Updating Komorebi border colors...")
-            config_path = self.config["komorebi_config"]
-            
-            # Backup the original file
             backup_path = config_path + ".bak"
             shutil.copy(config_path, backup_path)
             print(f"  ✔ Backup created at: {backup_path}")
 
-            # Read the existing file
-            if not os.path.exists(config_path):
-                print(f"  ❌ File not found: {config_path}")
-                return False
-
             with open(config_path, "r") as f:
                 config_data = json.load(f)
-                print(f"  ✔ Loaded Komorebi configuration from {config_path}")
-
-            # Check if "border_colours" exists and update it
-            if "border_colours" in config_data:
-                border_colours = config_data["border_colours"]
-
-                # Define the keys to update
-                keys_to_update = ["single", "stack", "monocle", "unfocused"]
-
-                # Update the colors for each key in "border_colours"
-                for i, key in enumerate(keys_to_update):
-                    if key in border_colours:
-                        print(f"  🟡 Updating {key} to {colors[i % len(colors)]}")
-                        border_colours[key] = colors[i % len(colors)]
             
-            # Write the updated configuration back to the file
+            if "border_colours" in config_data:
+                keys_to_update = ["single", "stack", "monocle", "unfocused"]
+                for i, key in enumerate(keys_to_update):
+                    if key in config_data["border_colours"]:
+                        print(f"  🟡 Updating {key} to {colors[i % len(colors)]}")
+                        config_data["border_colours"][key] = colors[i % len(colors)]
+
             with open(config_path, "w") as f:
                 json.dump(config_data, f, indent=4)
             print(f"  ✔ Komorebi colors updated at: {config_path}")
-
             return True
         except Exception as e:
             print(f"  ❌ Failed to update Komorebi colors: {str(e)}")
@@ -202,6 +195,7 @@ class WallpaperColorExtractor:
             print(f"\n❌ Error: {str(e)}")
             traceback.print_exc()
             sys.exit(1)
+
 
 if __name__ == "__main__":
     extractor = WallpaperColorExtractor()
