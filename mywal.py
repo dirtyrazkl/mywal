@@ -296,6 +296,57 @@ else {{
     print("3. Check PSReadLine is installed: Get-Module PSReadLine")
     print("4. Install PSReadLine if needed: Install-Module PSReadLine -Force")
 
+def update_powershell_profile(palette, profile_path):
+    """Update the PowerShell profile with colors while preserving existing content."""
+    try:
+        print(f"\n🔄 Updating PowerShell profile at: {profile_path}")
+
+        # Ensure the PowerShell profile directory exists
+        profile_dir = os.path.dirname(profile_path)
+        os.makedirs(profile_dir, exist_ok=True)
+
+        # Read existing profile content
+        if os.path.exists(profile_path):
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+
+        # Ensure `Import-Module PSReadLine` exists
+        if not any("Import-Module PSReadLine" in line for line in lines):
+            lines.insert(0, "Import-Module PSReadLine\n")  # Add it to the top of the file
+
+        # Add palette-based coloring (example)
+        color_commands = [
+            f"$Host.UI.RawUI.BackgroundColor = 'Black'",
+            f"$Host.UI.RawUI.ForegroundColor = 'DarkGreen'",
+            f"Clear-Host"
+        ]
+
+        # Replace or append colors section
+        start_marker = "# BEGIN PALETTE COLORS"
+        end_marker = "# END PALETTE COLORS"
+        start_idx = next((i for i, line in enumerate(lines) if start_marker in line), None)
+        end_idx = next((i for i, line in enumerate(lines) if end_marker in line), None)
+
+        if start_idx is not None and end_idx is not None:
+            # Replace existing colors
+            lines[start_idx:end_idx + 1] = [start_marker + "\n"] + [cmd + "\n" for cmd in color_commands] + [end_marker + "\n"]
+        else:
+            # Append new colors
+            lines.append("\n" + start_marker + "\n")
+            lines.extend(cmd + "\n" for cmd in color_commands)
+            lines.append(end_marker + "\n")
+
+        # Write back to the profile
+        with open(profile_path, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+
+        print("  ✔ PowerShell profile updated successfully!")
+
+    except Exception as e:
+        print(f"  ❌ Failed to update PowerShell profile: {str(e)}")
+
 # Additional function for contrast adjustment
 def adjust_contrast(color, background, threshold=4.5):
     """
