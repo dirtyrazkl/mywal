@@ -19,7 +19,7 @@ import subprocess
 
 # ===== CONFIGURATION =====
 KOMOREBI_CONFIG = "C:\\Users\\Mike\\komorebi.json"
-POWERSHELL_COLORS = os.path.expanduser("~\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1")
+POWERSHELL_COLORS = "C:\Users\Mike\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
 
 def capture_wallpaper_screenshot():
     """Capture screenshot of wallpaper without windows"""
@@ -74,20 +74,17 @@ def get_dominant_colors(image, num_colors=8):
         return None
 
 def show_color_palette(palette):
-    """Display the extracted color palette"""
-    fig, ax = plt.subplots(figsize=(10, 2))
+    """Display the extracted color palette in the terminal with color blocks."""
+    print("\n🎨 Extracted Color Palette:")
     for i, color in enumerate(palette):
-        norm_color = np.array(color)/255
-        ax.add_patch(Rectangle((i, 0), 1, 1, color=norm_color))
-        hex_code = to_hex(norm_color)
-        ax.text(i + 0.5, 0.5, f"HEX: {hex_code}\nRGB: {tuple(color)}", 
-                ha='center', va='center', color='white' if np.mean(color) < 128 else 'black')
-    ax.set_xlim(0, len(palette))
-    ax.set_ylim(0, 1)
-    ax.axis('off')
-    plt.title("Extracted Color Palette")
-    plt.tight_layout()
-    plt.show()
+        hex_code = f"#{color[0]:02x}{color[1]:02x}{color[2]:02x}"
+        rgb_code = f"RGB: {color[0]}, {color[1]}, {color[2]}"
+        
+        # ANSI escape code for background color
+        color_block = f"\033[48;2;{color[0]};{color[1]};{color[2]}m    \033[0m"
+        
+        # Print the color information with the block
+        print(f"{i + 1}. {rgb_code} {hex_code} {color_block}")
 
 def update_alacritty_colors(palette):
     """Update Alacritty colors.toml with new colors"""
@@ -400,24 +397,25 @@ def update_yasb_styles(palette):
         traceback.print_exc()
         return False
 
-def launch_new_powershell():
-    """Launch a new PowerShell window to show changes and keep it open"""
+def launch_new_powershell_with_config(profile_path):
+    """Launch a new PowerShell window to show changes with the updated config."""
     try:
-        print("\n🚀 Launching new PowerShell window to show changes...")
+        print("\n🚀 Launching new PowerShell window with updated config...")
         
-        # Create a more robust PowerShell command that will stay open
-        ps_command = """
+        # PowerShell command to load the updated profile
+        ps_command = f"""
         Write-Host '=== WALLPAPER COLOR APPLIER ===' -ForegroundColor Cyan
         Write-Host 'New PowerShell session with updated colors!' -ForegroundColor Green
-        Write-Host 'If colors don''t appear, run: . $PROFILE' -ForegroundColor Yellow
-        Write-Host 'Press any key to close this window...' -ForegroundColor Gray
+        Write-Host 'If colors don''t appear, run: . {profile_path}' -ForegroundColor Yellow
+        Write-Host 'Press any key to keep this window open...' -ForegroundColor Gray
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
         """
-        
+
         # Use START to launch in a new window and keep it open
         subprocess.Popen(f'start powershell.exe -NoExit -Command "{ps_command}"', 
-                        shell=True)
-        
+                         shell=True)
+        print("  ✔ New PowerShell window launched successfully!")
+
     except Exception as e:
         print(f"  ⚠️ Couldn't launch new PowerShell: {str(e)}")
 
