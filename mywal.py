@@ -17,6 +17,7 @@ import colorsys  # Added for HSL manipulation
 CONFIG = {
     "komorebi_config": os.getenv("KOMOREBI_CONFIG", "C:\\Users\\Mike\\komorebi.json"),
     "alacritty_config": os.getenv("ALACRITTY_CONFIG", "C:\\Users\\Mike\\AppData\\Roaming\\alacritty\\colors.toml"),
+    "yasb_styles": os.getenv("YASB_STYLES", "C:\\Users\\Mike\\.config\\yasb\\styles.css"),  # Add path to styles.css
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
     "num_colors": 5,
@@ -232,6 +233,66 @@ class WallpaperColorExtractor:
             self.log_error(e)
             return False
 
+    def update_yasb_styles(self, colors: List[str]) -> bool:
+        """
+        Update the YASB styles.css file with new colors for background, widgets, and text.
+        """
+        try:
+            print("\n🎨 Updating YASB styles.css...")
+            styles_path = self.config.get("yasb_styles", "styles.css")
+
+            # Backup the original file
+            backup_path = styles_path + ".bak"
+            shutil.copy(styles_path, backup_path)
+            print(f"  ✔ Backup created at: {backup_path}")
+
+            # Read the existing file
+            if not os.path.exists(styles_path):
+                print(f"  ❌ File not found: {styles_path}")
+                return False
+
+            with open(styles_path, "r") as f:
+                lines = f.readlines()
+                print(f"  ✔ Read {len(lines)} lines from {styles_path}")
+
+            # Sort colors by brightness
+            def brightness(hex_color):
+                r, g, b = tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (1, 3, 5))
+                return 0.299 * r + 0.587 * g + 0.114 * b
+
+            sorted_colors = sorted(colors, key=brightness)
+
+            # Assign colors for the stylesheet
+            background_color = sorted_colors[0]  # Darkest color
+            widget_background_color = sorted_colors[len(sorted_colors) // 2]  # Mid-tone color
+            text_color = sorted_colors[-1]  # Brightest color
+
+            # Replace colors in the stylesheet
+            updated_lines = []
+            for line in lines:
+                if "background-color:" in line:
+                    if ".yasb-bar" in line or "body" in line:
+                        print(f"  🟡 Replacing background color with {background_color}")
+                        line = re.sub(r'rgb\([^)]+\)', background_color, line)
+                    else:
+                        print(f"  🟢 Replacing widget background color with {widget_background_color}")
+                        line = re.sub(r'rgb\([^)]+\)', widget_background_color, line)
+                elif "color:" in line:
+                    print(f"  🔵 Replacing text color with {text_color}")
+                    line = re.sub(r'rgb\([^)]+\)', text_color, line)
+                updated_lines.append(line)
+
+            # Write the updated file
+            with open(styles_path, "w") as f:
+                f.writelines(updated_lines)
+            print(f"  ✔ YASB styles.css updated at: {styles_path}")
+
+            return True
+        except Exception as e:
+            print(f"  ❌ Failed to update YASB styles.css: {str(e)}")
+            self.log_error(e)
+            return False
+
     def run(self) -> None:
         """
         Main execution method to capture wallpaper, extract colors, and update configurations.
@@ -249,6 +310,7 @@ class WallpaperColorExtractor:
             updates = {
                 "Alacritty": self.update_alacritty_colors(palette),
                 "Komorebi": self.update_komorebi_colors(palette),
+                "YASB": self.update_yasb_styles(palette),  # Add YASB update here
             }
             print("\n✅ Done! Summary of changes:")
             for name, success in updates.items():
