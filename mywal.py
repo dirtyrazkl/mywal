@@ -20,8 +20,8 @@ CONFIG = {
     "yasb_styles": os.getenv("YASB_STYLES", "C:\\Users\\Mike\\.config\\yasb\\styles.css"),  # Add path to styles.css
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
-    "num_colors": 16,
-    "saturation_boost": 3,  # Factor to boost saturation
+    "num_colors": 4,
+    "saturation_boost": 1.5,  # Factor to boost saturation
 }
 
 # Configure logging
