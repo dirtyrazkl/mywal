@@ -20,7 +20,7 @@ CONFIG = {
     "yasb_styles": os.getenv("YASB_STYLES", "C:\\Users\\Mike\\.config\\yasb\\styles.css"),  # Add path to styles.css
     "debug_images": True,
     "debug_path": os.path.expanduser("~/walldesk_debug"),
-    "num_colors": 5,
+    "num_colors": 16,
     "saturation_boost": 3,  # Factor to boost saturation
 }
 
@@ -67,15 +67,23 @@ class WallpaperColorExtractor:
             height = user32.GetSystemMetrics(1)
             print(f"  ▶ Screen dimensions: {width}x{height}")
             screenshot = ImageGrab.grab(bbox=(0, 0, width, height))
+            
+            if screenshot is None:
+                print("  ❌ Screenshot capture returned None.")
+                return None
+
             if self.config["debug_images"]:
                 debug_file = os.path.join(self.config["debug_path"], "wallpaper.png")
                 screenshot.save(debug_file, format="PNG")
                 print(f"  ✔ Screenshot saved to: {debug_file}")
+            else:
+                print("  ✔ Screenshot captured successfully but not saved (debug disabled).")
+            
             return screenshot
         except Exception as e:
             print(f"  ❌ Screenshot failed: {str(e)}")
             self.log_error(e)
-            return None
+            return None    
 
     def get_dominant_colors(self, image: Image.Image) -> Optional[List[str]]:
         """
@@ -270,17 +278,22 @@ class WallpaperColorExtractor:
             # Replace colors in the stylesheet
             updated_lines = []
             for line in lines:
+                original_line = line  # Keep track of the original line for debugging
                 if "background-color:" in line:
                     if ".yasb-bar" in line or "body" in line:
-                        print(f"  🟡 Replacing background color with {background_color}")
-                        line = re.sub(r'rgb\([^)]+\)', background_color, line)
+                        print(f"  🟡 Replacing yasb-bar background color with {background_color}")
+                        line = re.sub(r'rgb\([^)]+\)|#[0-9a-fA-F]{6}', background_color, line)
                     else:
                         print(f"  🟢 Replacing widget background color with {widget_background_color}")
-                        line = re.sub(r'rgb\([^)]+\)', widget_background_color, line)
+                        line = re.sub(r'rgb\([^)]+\)|#[0-9a-fA-F]{6}', widget_background_color, line)
                 elif "color:" in line:
                     print(f"  🔵 Replacing text color with {text_color}")
-                    line = re.sub(r'rgb\([^)]+\)', text_color, line)
+                    line = re.sub(r'rgb\([^)]+\)|#[0-9a-fA-F]{6}', text_color, line)
                 updated_lines.append(line)
+
+                # Debugging: Print changes being made
+                if original_line != line:
+                    print(f"  🔧 Changed line:\n    Before: {original_line.strip()}\n    After:  {line.strip()}")
 
             # Write the updated file
             with open(styles_path, "w") as f:
@@ -291,7 +304,7 @@ class WallpaperColorExtractor:
         except Exception as e:
             print(f"  ❌ Failed to update YASB styles.css: {str(e)}")
             self.log_error(e)
-            return False
+            return False   
 
     def run(self) -> None:
         """
